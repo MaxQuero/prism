@@ -1,0 +1,43 @@
+# --- Système & Logs ---
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- SECRETS  ---
+.env
+.env.docker
+.env.local
+.env.production
+*.pem
+*.key
+
+# --- Node.js (Gateway & Dashboard) ---
+node_modules/
+dist/
+build/
+.cache/
+.next/
+
+# --- Python (ML-Engine) ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+.pytest_cache/
+.poetry/
+dist/
+
+# --- Docker ---
+.docker/
+
+# --- IDE ---
+.vscode/
+.idea/
+.cursor/
+*.swp
+*.swo

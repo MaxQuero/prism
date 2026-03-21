@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # TimescaleDB because we need time-series database and hypertables
+  database:
+    image: timescale/timescaledb:latest-pg15
+    container_name: prism-db
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - prism-network
+
+  # Ton API Gateway (Node/Express)
+  gateway:
+    build: ./services/gateway
+    container_name: prism-gateway
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}
+    depends_on:
+      - database
+    networks:
+      - prism-network
+
+  # Ton Moteur ML (Python/FastAPI)
+  ml-engine:
+    build: ./services/ml-engine
+    container_name: prism-ml
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}
+      - RTE_CLIENT_ID=${RTE_CLIENT_ID}
+      - RTE_CLIENT_SECRET=${RTE_CLIENT_SECRET}
+    depends_on:
+      - database
+    networks:
+      - prism-network
+
+networks:
+  prism-network:
+    driver: bridge
+
+volumes:
+  db_data:

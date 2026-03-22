@@ -3,8 +3,6 @@ version: '3.8'
 services:
   # TimescaleDB because we need time-series database and hypertables
   database:
-    env_file:
-      - .env.docker
     image: timescale/timescaledb:latest-pg15
     container_name: prism-db
     ports:
@@ -21,8 +19,6 @@ services:
 
   # Ton API Gateway (Node/Express)
   gateway:
-    env_file:
-      - .env.docker
     build: 
       context: ./services/gateway
       dockerfile: Dockerfile
@@ -38,8 +34,6 @@ services:
 
   # Ton Moteur ML (Python/FastAPI)
   ml-engine:
-    env_file:
-      - .env.docker
     build:
       context: ./services/ml-engine
       dockerfile: Dockerfile

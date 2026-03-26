@@ -1,0 +1,67 @@
+[project]
+name = "ml-engine"
+version = "0.1.0"
+description = "Real-time RTE energy data analysis and AI forecasting"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.135.2",
+    "httpx>=0.28.1",
+    "loguru>=0.7.3",
+    "pydantic-settings>=2.13.1",
+    "uvicorn>=0.42.0",
+]
+
+[dependency-groups]
+dev = [
+    "import-linter>=2.11",
+    "pre-commit>=4.5.1",
+    "pyright>=1.1.408",
+    "ruff>=0.15.7",
+]
+
+# --- Ruff Configuration (Linter & Formatter) ---
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+ignore = []
+
+[tool.ruff.format]
+quote-style = "double"
+
+# --- Pyright Configuration (Type Checker) ---
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+typeCheckingMode = "strict"
+useLibraryCodeForTypes = true
+reportMissingImports = true
+
+[tool.importlinter]
+root_packages = ["src"]
+
+[[tool.importlinter.contracts]]
+name = "Energy — hexagonal layer order"
+type = "layers"
+layers = [
+    "src.energy.entrypoints",
+    "src.energy.application",
+    "src.energy.domain",
+]
+ignore_imports = [
+    "src.energy.entrypoints.* -> src.energy.dependencies",
+]
+
+[[tool.importlinter.contracts]]
+name = "Energy — adapters must not leak into entrypoints"
+type = "forbidden"
+source_modules = [
+    "src.energy.entrypoints",
+    "src.energy.application",
+]
+forbidden_modules = [
+    "src.energy.infrastructure",
+]

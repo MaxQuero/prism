@@ -1,12 +1,15 @@
 import base64
+from datetime import datetime
 
 from src.core.http_client import HttpClient
 from src.core.logger import logger
 from src.core.token_cache import TokenCache
+from src.energy.domain.models.consumption import ElectricityConsumptionModel
 from src.energy.infrastructure.rte.api import RteApi
+from src.energy.infrastructure.rte.dto import RteForecastType, RteShortTermConsumptionResponse
 
 
-class RteApiClient:
+class RteApiClientAdapter:
     """Adapter implementing the EnergyDataGateway port for RTE."""
 
     def __init__(self, base_url: str, client_id: str, client_secret: str) -> None:
@@ -16,7 +19,7 @@ class RteApiClient:
         self._api = RteApi(http=self._http, credentials=credentials)
         self._token_cache = TokenCache()
 
-    async def request_token(self) -> str:
+    async def _request_token(self) -> str:
         cached = self._token_cache.get_valid_token()
         if cached:
             logger.debug("[RTE] Using cached OAuth2 token")
@@ -29,5 +32,34 @@ class RteApiClient:
         logger.info(f"[RTE] OAuth2 token obtained, valid for {expires_in}s")
         return token
 
+    async def get_realized_consumption(
+        self,
+        start: datetime | None = None,
+        end: datetime | None = None,
+    ) -> list[ElectricityConsumptionModel]:
+        token = await self._request_token()
+        rte: RteShortTermConsumptionResponse = await self._api.get_short_term_consumption(
+            RteForecastType.REALIZED,
+            token,
+            start_date=start,
+            end_date=end,
+        )
+        return _short_term_to_domain(rte)
+
     async def close(self) -> None:
         await self._http.close()
+
+
+def _short_term_to_domain(
+    rte: RteShortTermConsumptionResponse,
+) -> list[ElectricityConsumptionModel]:
+    out: list[ElectricityConsumptionModel] = []
+    for block in rte.short_term:
+        for v in block.values:
+            out.append(
+                ElectricityConsumptionModel(
+                    timestamp=v.start_date,
+                    megawatts=0 if v.value is None else v.value,
+                )
+            )
+    return out

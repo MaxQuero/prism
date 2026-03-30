@@ -5,7 +5,7 @@ from fastapi import FastAPI
 
 from src.core.logger import logger, setup_logger
 from src.energy.bootstrap import init_energy, shutdown_energy
-from src.energy.entrypoints.http.router import router as energy_router
+from src.energy.entrypoints.http.router import consumption_router
 
 
 @asynccontextmanager
@@ -28,7 +28,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-app.include_router(energy_router, prefix="/api/v1/energy")
+app.include_router(consumption_router, prefix="/api/v1/energy")
 
 
 @app.get("/health", tags=["Health"])

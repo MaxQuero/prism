@@ -1,14 +1,14 @@
 from fastapi import FastAPI
 
 from src.core.logger import logger
-from src.energy.infrastructure.rte.adapter import RteApiClient
+from src.energy.infrastructure.rte.adapter import RteApiClientAdapter
 from src.energy.infrastructure.rte.settings import RteSettings
 
 
 async def init_energy(app: FastAPI) -> None:
     """Bootstrap the energy module: create and store the provider client."""
     rte_settings = RteSettings()
-    app.state.rte_client = RteApiClient(
+    app.state.rte_client = RteApiClientAdapter(
         base_url=rte_settings.base_url,
         client_id=rte_settings.client_id,
         client_secret=rte_settings.client_secret,

@@ -4,7 +4,7 @@ from datetime import datetime
 from src.core.http_client import HttpClient
 from src.core.logger import logger
 from src.core.token_cache import TokenCache
-from src.energy.domain.models.consumption import ElectricityConsumptionModel
+from src.energy.domain.models.consumption import ElectricityConsumptionModel, ForecastHorizon
 from src.energy.infrastructure.rte.api import RteApi
 from src.energy.infrastructure.rte.dto import RteForecastType, RteShortTermConsumptionResponse
 
@@ -38,28 +38,57 @@ class RteApiClientAdapter:
         end: datetime | None = None,
     ) -> list[ElectricityConsumptionModel]:
         token = await self._request_token()
-        rte: RteShortTermConsumptionResponse = await self._api.get_short_term_consumption(
+        rteDto: RteShortTermConsumptionResponse = await self._api.get_short_term_consumption(
             RteForecastType.REALIZED,
             token,
             start_date=start,
             end_date=end,
         )
-        return _short_term_to_domain(rte)
+        return _short_term_to_domain(rteDto)
+
+    async def get_forecast_consumption(
+        self,
+        forecast_horizon: ForecastHorizon,
+        start: datetime | None = None,
+        end: datetime | None = None,
+    ) -> list[ElectricityConsumptionModel]:
+        token = await self._request_token()
+
+        forecast_rte_type: RteForecastType = _map_horizon_to_rte_type(forecast_horizon)
+
+        rteDto: RteShortTermConsumptionResponse = await self._api.get_short_term_consumption(
+            forecast_type=forecast_rte_type,
+            token=token,
+            start_date=start,
+            end_date=end,
+        )
+        return _short_term_to_domain(rteDto)
 
     async def close(self) -> None:
         await self._http.close()
 
 
+def _map_horizon_to_rte_type(horizon: ForecastHorizon) -> RteForecastType:
+    """Translates Domain horizon to RTE specific infrastructure type."""
+    match horizon:
+        case ForecastHorizon.INTRADAY:
+            return RteForecastType.ID
+        case ForecastHorizon.DAY_AHEAD:
+            return RteForecastType.D_1
+        case ForecastHorizon.TWO_DAYS_AHEAD:
+            return RteForecastType.D_2
+        case _:
+            raise ValueError(f"Unsupported forecast horizon: {horizon}")
+
+
 def _short_term_to_domain(
-    rte: RteShortTermConsumptionResponse,
+    rteDto: RteShortTermConsumptionResponse,
 ) -> list[ElectricityConsumptionModel]:
-    out: list[ElectricityConsumptionModel] = []
-    for block in rte.short_term:
-        for v in block.values:
-            out.append(
-                ElectricityConsumptionModel(
-                    timestamp=v.start_date,
-                    megawatts=0 if v.value is None else v.value,
-                )
-            )
-    return out
+    return [
+        ElectricityConsumptionModel(
+            timestamp=point.start_date,
+            megawatts=0 if point.value is None else point.value,
+        )
+        for block in rteDto.short_term
+        for point in block.values
+    ]

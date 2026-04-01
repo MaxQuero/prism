@@ -54,6 +54,7 @@ class RteApi:
                 params["start_date"] = start_date.replace(microsecond=0).isoformat()
             if end_date:
                 params["end_date"] = end_date.replace(microsecond=0).isoformat()
+
             raw_data = await self._http.get(
                 "/open_api/consumption/v1/short_term",
                 params=params,

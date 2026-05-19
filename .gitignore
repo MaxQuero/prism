@@ -35,6 +35,9 @@ dist/
 # --- Docker ---
 .docker/
 
+# --- Data ---
+services/ml-engine/data/
+
 # --- IDE ---
 .vscode/
 .idea/

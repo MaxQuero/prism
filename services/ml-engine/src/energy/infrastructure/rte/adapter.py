@@ -1,5 +1,6 @@
 import base64
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from src.core.http_client import HttpClient
 from src.core.logger import logger
@@ -7,6 +8,10 @@ from src.core.token_cache import TokenCache
 from src.energy.domain.models.consumption import ElectricityConsumptionModel, ForecastHorizon
 from src.energy.infrastructure.rte.api import RteApi
 from src.energy.infrastructure.rte.dto import RteForecastType, RteShortTermConsumptionResponse
+from src.energy.infrastructure.rte.mapper import (
+    map_horizon_to_rte_type,
+    map_rte_consumption_to_domain_models,
+)
 
 
 class RteApiClientAdapter:
@@ -18,6 +23,20 @@ class RteApiClientAdapter:
         self._http = HttpClient(base_url=base_url)
         self._api = RteApi(http=self._http, credentials=credentials)
         self._token_cache = TokenCache()
+
+    def _secure_dates(
+        self, start: datetime | None, end: datetime | None
+    ) -> tuple[datetime | None, datetime | None]:
+        """Assure que les dates ont le fuseau horaire français et gère les fins de journée."""
+        french_tz = ZoneInfo("Europe/Paris")
+
+        if start and start.tzinfo is None:
+            start = start.replace(tzinfo=french_tz)
+
+        if end and end.tzinfo is None:
+            end = end.replace(tzinfo=french_tz)
+
+        return start, end
 
     async def _request_token(self) -> str:
         cached = self._token_cache.get_valid_token()
@@ -38,13 +57,14 @@ class RteApiClientAdapter:
         end: datetime | None = None,
     ) -> list[ElectricityConsumptionModel]:
         token = await self._request_token()
+        start, end = self._secure_dates(start, end)
         rteDto: RteShortTermConsumptionResponse = await self._api.get_short_term_consumption(
             RteForecastType.REALIZED,
             token,
             start_date=start,
             end_date=end,
         )
-        return _short_term_to_domain(rteDto)
+        return map_rte_consumption_to_domain_models(rteDto)
 
     async def get_forecast_consumption(
         self,
@@ -53,8 +73,8 @@ class RteApiClientAdapter:
         end: datetime | None = None,
     ) -> list[ElectricityConsumptionModel]:
         token = await self._request_token()
-
-        forecast_rte_type: RteForecastType = _map_horizon_to_rte_type(forecast_horizon)
+        start, end = self._secure_dates(start, end)
+        forecast_rte_type: RteForecastType = map_horizon_to_rte_type(forecast_horizon)
 
         rteDto: RteShortTermConsumptionResponse = await self._api.get_short_term_consumption(
             forecast_type=forecast_rte_type,
@@ -62,33 +82,7 @@ class RteApiClientAdapter:
             start_date=start,
             end_date=end,
         )
-        return _short_term_to_domain(rteDto)
+        return map_rte_consumption_to_domain_models(rteDto)
 
     async def close(self) -> None:
         await self._http.close()
-
-
-def _map_horizon_to_rte_type(horizon: ForecastHorizon) -> RteForecastType:
-    """Translates Domain horizon to RTE specific infrastructure type."""
-    match horizon:
-        case ForecastHorizon.INTRADAY:
-            return RteForecastType.ID
-        case ForecastHorizon.DAY_AHEAD:
-            return RteForecastType.D_1
-        case ForecastHorizon.TWO_DAYS_AHEAD:
-            return RteForecastType.D_2
-        case _:
-            raise ValueError(f"Unsupported forecast horizon: {horizon}")
-
-
-def _short_term_to_domain(
-    rteDto: RteShortTermConsumptionResponse,
-) -> list[ElectricityConsumptionModel]:
-    return [
-        ElectricityConsumptionModel(
-            timestamp=point.start_date,
-            megawatts=0 if point.value is None else point.value,
-        )
-        for block in rteDto.short_term
-        for point in block.values
-    ]

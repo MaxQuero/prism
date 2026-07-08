@@ -18,7 +18,8 @@ COPY . .
 
 # Remove devDependencies after the build
 # We gain weight here
-RUN npm prune --production && npm cache clean --force
+RUN npm prune --production && npm cache clean --force \
+    && mkdir -p node_modules
 
 
 # ---- Production ----

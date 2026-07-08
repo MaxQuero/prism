@@ -54,6 +54,17 @@ uv run pre-commit install   # optional but recommended
 
 Run checks manually when needed: `uv run ruff check .`, `uv run ruff format .`, `uv run pyright`.
 
+**Jupyter notebooks** — outputs and execution metadata (`execution_count`, cell outputs, etc.) are stripped before Git tracks changes, so commits and PR diffs reflect only source cells. One-time setup per clone (from the repo root):
+
+```bash
+cd services/ml-engine
+uv sync
+uv run nbstripout --install --attributes ../../.gitattributes
+uv run pre-commit install
+```
+
+You can keep outputs locally while working; only the code is versioned. To reset notebooks on disk to the stripped form: `uv run nbstripout notebooks/*.ipynb`.
+
 ## Tooling — Gateway & front (overview)
 
 - **Gateway** (`services/gateway`) — Node **24** on **Debian Bookworm**-based images; multi-stage Docker builds; production installs use locked dependencies where applicable.

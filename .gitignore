@@ -41,6 +41,8 @@ services/ml-engine/data/
 # --- IDE ---
 .vscode/
 .idea/
-.cursor/
+.cursor/*
+!.cursor/skills/
+!.cursor/skills/**
 *.swp
 *.swo

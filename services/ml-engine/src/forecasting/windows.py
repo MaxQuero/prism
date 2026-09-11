@@ -25,6 +25,10 @@ class EvalWindowSpec:
     horizon: int
     seasonal_lag_hours: int
 
+    def min_series_length(self, offset: int = 0) -> int:
+        """Smallest series length usable for a holdout ending ``offset`` hours before the end."""
+        return offset + self.horizon + max(self.context, self.seasonal_lag_hours)
+
 
 EVAL_WINDOW_24H = EvalWindowSpec(
     name="context_168h_horizon_24h",
@@ -42,7 +46,7 @@ EVAL_WINDOW_48H = EvalWindowSpec(
 
 
 @dataclass(frozen=True, slots=True)
-class EvalWindows:
+class ExtractedWindows:
     """Numeric windows plus the holdout index (reporting or plots vs time)."""
 
     context: NDArray[np.float64]
@@ -51,23 +55,36 @@ class EvalWindows:
     holdout_index: pd.Index
 
 
-def extract_windows(y: pd.Series, spec: EvalWindowSpec) -> EvalWindows:
-    """Slice ``y`` into context, holdout, and naive baseline; all values as float64 vectors."""
-    context_start = spec.context + spec.horizon
-    baseline_start = spec.seasonal_lag_hours + spec.horizon
+def extract_windows(y: pd.Series, spec: EvalWindowSpec, *, offset: int = 0) -> ExtractedWindows:
+    """Slice ``y`` into context, holdout, and naive baseline; all values as float64 vectors.
 
-    context_series = y.iloc[-context_start : -spec.horizon]
-    holdout_series = y.iloc[-spec.horizon :]
-    baseline_series = y.iloc[-baseline_start : -spec.seasonal_lag_hours]
+    ``offset`` shifts the holdout back from the series end by that many hours
+    (0 = last ``horizon`` points, 24 = the day before, etc.), enabling
+    rolling-origin backtests.
+    """
+    if offset < 0:
+        msg = f"offset must be >= 0, got {offset}"
+        raise ValueError(msg)
 
-    if baseline_series.shape[0] != holdout_series.shape[0]:
+    required = spec.min_series_length(offset)
+    if y.shape[0] < required:
         msg = (
-            f"baseline length {baseline_series.shape[0]} != "
-            f"holdout length {holdout_series.shape[0]} for spec {spec.name!r}"
+            f"series has {y.shape[0]} points but spec {spec.name!r} needs at least {required} "
+            f"(context={spec.context}, horizon={spec.horizon}, "
+            f"seasonal_lag={spec.seasonal_lag_hours}, offset={offset}); "
+            "pandas would otherwise silently return truncated windows"
         )
         raise ValueError(msg)
 
-    return EvalWindows(
+    end = y.shape[0] - offset
+    holdout_start = end - spec.horizon
+    context_series = y.iloc[holdout_start - spec.context : holdout_start]
+    holdout_series = y.iloc[holdout_start:end]
+    baseline_series = y.iloc[
+        holdout_start - spec.seasonal_lag_hours : end - spec.seasonal_lag_hours
+    ]
+
+    return ExtractedWindows(
         context=cast(
             NDArray[np.float64],
             context_series.to_numpy(dtype=np.float64, copy=True),

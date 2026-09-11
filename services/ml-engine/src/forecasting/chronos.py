@@ -41,7 +41,7 @@ class ChronosEvalResult:
 
     window_name: str
     model_id: str
-    prediction_length: int
+    horizon: int
     ground_truth: NDArray[np.float64]
     baseline: NDArray[np.float64]
     median: NDArray[np.float64]
@@ -78,8 +78,8 @@ def run_chronos_eval(
 ) -> ChronosEvalResult:
     """Slice windows, run Chronos.predict, aggregate sample quantiles, run sanity checks."""
     windows = extract_windows(y, spec)
-    prediction_length = int(windows.holdout.shape[0])
-    if prediction_length < 1:
+    horizon = int(windows.holdout.shape[0])
+    if horizon < 1:
         msg = "Holdout window is empty."
         raise ValueError(msg)
 
@@ -87,7 +87,7 @@ def run_chronos_eval(
     context_tensor = torch.tensor(windows.context, dtype=torch.float32)
     forecasts = pipeline.predict(
         context_tensor,
-        prediction_length=prediction_length,
+        prediction_length=horizon,
         num_samples=num_samples,
     )
     # forecasts: (batch, samples, horizon)
@@ -99,7 +99,7 @@ def run_chronos_eval(
     return ChronosEvalResult(
         window_name=spec.name,
         model_id=model_id,
-        prediction_length=prediction_length,
+        horizon=horizon,
         ground_truth=windows.holdout,
         baseline=windows.baseline,
         median=median,

@@ -16,7 +16,7 @@ def plot_forecast_comparison(
     low: NDArray[np.floating] | np.ndarray,
     high: NDArray[np.floating] | np.ndarray,
     *,
-    prediction_length: int,
+    horizon: int,
     title: str = "Chronos vs realized consumption",
 ) -> None:
     """Overlay holdout, naive baseline, median forecast, and P10–P90 band."""
@@ -25,11 +25,11 @@ def plot_forecast_comparison(
     median = np.asarray(median, dtype=np.float64)
     low = np.asarray(low, dtype=np.float64)
     high = np.asarray(high, dtype=np.float64)
-    horizon = np.arange(prediction_length, dtype=np.int64)
+    hours = np.arange(horizon, dtype=np.int64)
     plt.figure(figsize=(12, 6))
-    plt.plot(horizon, ground_truth, label="Realized (holdout)", color="black", lw=2)
+    plt.plot(hours, ground_truth, label="Realized (holdout)", color="black", lw=2)
     plt.plot(
-        horizon,
+        hours,
         baseline,
         label="Naive baseline (week ago)",
         linestyle="--",
@@ -37,8 +37,8 @@ def plot_forecast_comparison(
         lw=2,
         alpha=0.8,
     )
-    plt.plot(horizon, median, label="Chronos (median)", color="blue")
-    plt.fill_between(horizon, low, high, color="blue", alpha=0.2, label="P10–P90")
+    plt.plot(hours, median, label="Chronos (median)", color="blue")
+    plt.fill_between(hours, low, high, color="blue", alpha=0.2, label="P10–P90")
     plt.title(title)
     plt.xlabel("Horizon (h)")
     plt.ylabel("MW")
@@ -50,19 +50,19 @@ def plot_forecast_comparison(
 def plot_horizon_errors(
     errors_percent: NDArray[np.floating] | np.ndarray,
     *,
-    prediction_length: int,
+    horizon: int,
     title: str | None = None,
 ) -> None:
     """Line plot of absolute percentage error across forecast horizons."""
     err = np.asarray(errors_percent, dtype=np.float64)
-    if err.shape[0] != prediction_length:
-        msg = f"errors length {err.shape[0]} != prediction_length {prediction_length}"
+    if err.shape[0] != horizon:
+        msg = f"errors length {err.shape[0]} != horizon {horizon}"
         raise ValueError(msg)
-    horizon = np.arange(prediction_length, dtype=np.int64)
+    hours = np.arange(horizon, dtype=np.int64)
     if title is None:
-        title = f"Absolute percentage error by horizon ({prediction_length} h)"
+        title = f"Absolute percentage error by horizon ({horizon} h)"
     plt.figure(figsize=(10, 4))
-    plt.plot(horizon, err)
+    plt.plot(hours, err)
     plt.title(title)
     plt.ylabel("Absolute error (%)")
     plt.xlabel("Horizon (h)")

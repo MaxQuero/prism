@@ -27,7 +27,7 @@ class RteApiClientAdapter:
     def _secure_dates(
         self, start: datetime | None, end: datetime | None
     ) -> tuple[datetime | None, datetime | None]:
-        """Assure que les dates ont le fuseau horaire français et gère les fins de journée."""
+        """Attach Europe/Paris to naive datetimes; tz-aware inputs are returned untouched."""
         french_tz = ZoneInfo("Europe/Paris")
 
         if start and start.tzinfo is None:

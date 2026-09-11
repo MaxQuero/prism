@@ -20,11 +20,10 @@ def map_horizon_to_rte_type(horizon: ForecastHorizon) -> RteForecastType:
 def map_rte_consumption_to_domain_models(
     rte_dto: RteShortTermConsumptionResponse,
 ) -> list[ElectricityConsumptionModel]:
+    """Points without a value are dropped: a fake 0 MW would be a massive outlier downstream."""
     return [
-        ElectricityConsumptionModel(
-            timestamp=point.start_date,
-            megawatts=0 if point.value is None else point.value,
-        )
+        ElectricityConsumptionModel(timestamp=point.start_date, megawatts=point.value)
         for block in rte_dto.short_term
         for point in block.values
+        if point.value is not None
     ]
